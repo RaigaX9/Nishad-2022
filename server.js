@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const bodyParser = require('body-parser');
 
 let storedPK = null;
+let storedPassword = null;
 
 const app = express();
 app.use(bodyParser.json());
@@ -30,8 +31,24 @@ if (!serverPass) {
     console.error('Server Password Required.');
     process.exit(1);
 }
+storedPassword = hashPassword(serverPass);
+
+app.post('/verify', (req, res) => {
+    const { message, signature } = req.body;
+    if (!storedPK) {
+        return res.status(400).send('No public key stored on server.');
+    }
+
+    const verify = crypto.createVerify('SHA256');
+    verify.update(message);
+    verify.end();
+
+    const isValid = verify.verify(storedPK, signature, 'hex');
+    res.send({ valid: isValid });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Running on port ${PORT}`);
+    console.log(`Password Hash: ${storedPassword}`);
 });
